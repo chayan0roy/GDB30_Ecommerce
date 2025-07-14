@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { Banner } = require('../models/bannerModel');
-const authenticate = require('../middleware/auth');
+const { Banner } = require('../modules/bannerSchema');
+const passport = require('passport');
 
 // 1. Get all banners (Admin only)
-router.get('/banners', authenticate, async (req, res) => {
+router.get('/banners', passport.authenticate('jwt', { session: false }), async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).send('Forbidden.');
   try {
     const banners = await Banner.find({});
@@ -25,7 +25,7 @@ router.get('/banners/active', async (req, res) => {
 });
 
 // (Optional) Admin-only banner management
-router.post('/banners', authenticate, async (req, res) => {
+router.post('/banners', passport.authenticate('jwt', { session: false }), async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).send('Forbidden.');
   try {
     const { title, subtitle, image, link } = req.body;

@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { Order } = require('../models/orderModel');
-const { Cart } = require('../models/cartModel');
-const { Product } = require('../models/productModel');
-const authenticate = require('../middleware/auth');
+const { Order } = require('../modules/orderSchema');
+const { Cart } = require('../modules/cartSchema');
+const { Product } = require('../modules/productSchema');
+const passport = require('passport');
 
 // 1. Get all orders (user-specific or admin)
-router.get('/orders', authenticate, async (req, res) => {
+router.get('/orders', passport.authenticate('jwt', { session: false }), async (req, res) => {
   try {
     const orders = req.user.role === 'admin' 
       ? await Order.find({}).populate('user items.product shippingAddress')
@@ -19,7 +19,7 @@ router.get('/orders', authenticate, async (req, res) => {
 });
 
 // 2. Get order by ID
-router.get('/orders/:id', authenticate, async (req, res) => {
+router.get('/orders/:id', passport.authenticate('jwt', { session: false }), async (req, res) => {
   try {
     const order = await Order.findById(req.params.id)
       .populate('user items.product shippingAddress');
@@ -38,7 +38,7 @@ router.get('/orders/:id', authenticate, async (req, res) => {
 });
 
 // 3. Create new order from cart
-router.post('/orders/create', authenticate, async (req, res) => {
+router.post('/orders/create', passport.authenticate('jwt', { session: false }), async (req, res) => {
   const { shippingAddressId, paymentMethod } = req.body;
   
   try {
@@ -89,7 +89,7 @@ router.post('/orders/create', authenticate, async (req, res) => {
 });
 
 // 4. Cancel order
-router.patch('/orders/cancel/:id', authenticate, async (req, res) => {
+router.patch('/orders/cancel/:id', passport.authenticate('jwt', { session: false }), async (req, res) => {
   try {
     const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).send('Order not found.');

@@ -1,8 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { Product } = require('../models/productModel');
-const { Category } = require('../models/categoryModel');
-const authenticate = require('../middleware/auth'); // Reuse auth middleware
+const { Product } = require('../modules/productSchema');
 
 // 1. Get all products
 router.get('/products', async (req, res) => {

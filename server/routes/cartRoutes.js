@@ -1,11 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const { Cart } = require('../models/cartModel');
-const { Product } = require('../models/productModel');
-const authenticate = require('../middleware/auth');
+const { Cart } = require('../modules/cartSchema');
+const { Product } = require('../modules/productSchema');
+const passport = require('passport');
+
+
+
 
 // 1. Get user's cart
-router.get('/cart', authenticate, async (req, res) => {
+router.get('/cart', passport.authenticate('jwt', { session: false }), async (req, res) => {
   try {
     const cart = await Cart.findOne({ user: req.user._id }).populate('items.product');
     if (!cart) return res.status(404).send('Cart not found.');
@@ -16,7 +19,7 @@ router.get('/cart', authenticate, async (req, res) => {
 });
 
 // 2. Add item to cart
-router.post('/cart/add', authenticate, async (req, res) => {
+router.post('/cart/add', passport.authenticate('jwt', { session: false }), async (req, res) => {
   const { productId, quantity } = req.body;
   try {
     const product = await Product.findById(productId);
@@ -46,7 +49,7 @@ router.post('/cart/add', authenticate, async (req, res) => {
 });
 
 // 3. Remove item from cart
-router.delete('/cart/remove/:productId', authenticate, async (req, res) => {
+router.delete('/cart/remove/:productId', passport.authenticate('jwt', { session: false }), async (req, res) => {
   try {
     const cart = await Cart.findOne({ user: req.user._id });
     if (!cart) return res.status(404).send('Cart not found.');
@@ -65,7 +68,7 @@ router.delete('/cart/remove/:productId', authenticate, async (req, res) => {
 });
 
 // 4. Update cart item quantity
-router.patch('/cart/update/:productId', authenticate, async (req, res) => {
+router.patch('/cart/update/:productId', passport.authenticate('jwt', { session: false }), async (req, res) => {
   const { quantity } = req.body;
   try {
     const cart = await Cart.findOne({ user: req.user._id });

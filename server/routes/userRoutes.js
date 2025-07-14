@@ -1,25 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const { User } = require('../models/userModel');
+const { User } = require('../modules/userSchema');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const passport = require('passport');
 
-// Middleware for authentication
-const authenticate = (req, res, next) => {
-  const token = req.header('Authorization')?.replace('Bearer ', '');
-  if (!token) return res.status(401).send('Access denied. No token provided.');
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch (err) {
-    res.status(400).send('Invalid token.');
-  }
-};
 
 // 1. Get all users (Admin only)
-router.get('/users', authenticate, async (req, res) => {
+router.get('/users', passport.authenticate('jwt', { session: false }), async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).send('Forbidden.');
   try {
     const users = await User.find({});
@@ -30,7 +18,7 @@ router.get('/users', authenticate, async (req, res) => {
 });
 
 // 2. Get user by ID
-router.get('/users/:id', authenticate, async (req, res) => {
+router.get('/users/:id', passport.authenticate('jwt', { session: false }), async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).send('User not found.');
@@ -41,7 +29,7 @@ router.get('/users/:id', authenticate, async (req, res) => {
 });
 
 // 3. Get current user profile
-router.get('/users/profile', authenticate, async (req, res) => {
+router.get('/users/profile', passport.authenticate('jwt', { session: false }), async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
     if (!user) return res.status(404).send('User not found.');
@@ -95,7 +83,7 @@ router.post('/users/register', async (req, res) => {
 });
 
 // 6. Get user addresses
-router.get('/users/:id/addresses', authenticate, async (req, res) => {
+router.get('/users/:id/addresses', passport.authenticate('jwt', { session: false }), async (req, res) => {
   if (req.user._id !== req.params.id && req.user.role !== 'admin') {
     return res.status(403).send('Forbidden.');
   }

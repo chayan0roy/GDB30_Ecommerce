@@ -24,6 +24,7 @@ const addressRoutes = require('./routes/addressRoutes');
 dotenv.config();
 
 app.use(express.json());
+
 app.use(passport.initialize());
 
 
@@ -31,11 +32,11 @@ app.use(passport.initialize());
 app.use('/api', userRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/cart', cartRoutes);
-app.use('/api', watchlistRoutes);
-app.use('/api', orderRoutes);
-app.use('/api', categoryRoutes);
-app.use('/api', bannerRoutes);
-app.use('/api', addressRoutes);
+app.use('/api/watchlist', watchlistRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/banners', bannerRoutes);
+app.use('/api/addresses', addressRoutes);
 
 
 app.listen(process.env.PORT, () => {

@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { Watchlist } = require('../models/watchlistModel');
-const { Product } = require('../models/productModel');
-const authenticate = require('../middleware/auth');
+const { Watchlist } = require('../modules/watchlistSchema');
+const { Product } = require('../modules/productSchema');
+const passport = require('passport');
 
 // 1. Get user's watchlist
-router.get('/watchlist', authenticate, async (req, res) => {
+router.get('/watchlist', passport.authenticate('jwt', { session: false }), async (req, res) => {
   try {
     const watchlist = await Watchlist.findOne({ user: req.user._id })
       .populate('products.product');
@@ -20,7 +20,7 @@ router.get('/watchlist', authenticate, async (req, res) => {
 });
 
 // 2. Add product to watchlist
-router.post('/watchlist/add/:productId', authenticate, async (req, res) => {
+router.post('/watchlist/add/:productId', passport.authenticate('jwt', { session: false }), async (req, res) => {
   try {
     const product = await Product.findById(req.params.productId);
     if (!product) return res.status(404).send('Product not found.');
@@ -50,7 +50,7 @@ router.post('/watchlist/add/:productId', authenticate, async (req, res) => {
 });
 
 // 3. Remove product from watchlist
-router.delete('/watchlist/remove/:productId', authenticate, async (req, res) => {
+router.delete('/watchlist/remove/:productId', passport.authenticate('jwt', { session: false }), async (req, res) => {
   try {
     const watchlist = await Watchlist.findOne({ user: req.user._id });
     if (!watchlist) return res.status(404).send('Watchlist not found.');

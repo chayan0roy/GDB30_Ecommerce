@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { Category } = require('../models/categoryModel');
-const authenticate = require('../middleware/auth');
+const { Category } = require('../modules/categorySchema');
+const passport = require('passport');
 
 // 1. Get all categories
 router.get('/categories', async (req, res) => {
@@ -25,7 +25,7 @@ router.get('/categories/:id', async (req, res) => {
 });
 
 // (Optional) Admin-only category management routes
-router.post('/categories', authenticate, async (req, res) => {
+router.post('/categories', passport.authenticate('jwt', { session: false }), async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).send('Forbidden.');
   try {
     const { name, image } = req.body;

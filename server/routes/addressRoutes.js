@@ -1,10 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { Address } = require('../models/addressModel');
-const authenticate = require('../middleware/auth');
+const { Address } = require('../modules/addressSchema');
+const passport = require('passport');
 
-// 1. Get all addresses for authenticated user
-router.get('/addresses', authenticate, async (req, res) => {
+router.get('/addresses', passport.authenticate('jwt', { session: false }), async (req, res) => {
   try {
     const addresses = await Address.find({ user: req.user._id });
     res.json(addresses);
@@ -14,7 +13,7 @@ router.get('/addresses', authenticate, async (req, res) => {
 });
 
 // 2. Get address by ID (user-specific)
-router.get('/addresses/:id', authenticate, async (req, res) => {
+router.get('/addresses/:id', passport.authenticate('jwt', { session: false }), async (req, res) => {
   try {
     const address = await Address.findOne({
       _id: req.params.id,
@@ -28,7 +27,7 @@ router.get('/addresses/:id', authenticate, async (req, res) => {
 });
 
 // 3. Get/set default address
-router.get('/addresses/default', authenticate, async (req, res) => {
+router.get('/addresses/default', passport.authenticate('jwt', { session: false }), async (req, res) => {
   try {
     const address = await Address.findOne({
       user: req.user._id,
@@ -40,7 +39,7 @@ router.get('/addresses/default', authenticate, async (req, res) => {
   }
 });
 
-router.patch('/addresses/default/:id', authenticate, async (req, res) => {
+router.patch('/addresses/default/:id', passport.authenticate('jwt', { session: false }), async (req, res) => {
   try {
     // Reset all other addresses to non-default
     await Address.updateMany(
@@ -63,7 +62,7 @@ router.patch('/addresses/default/:id', authenticate, async (req, res) => {
 });
 
 // (Optional) Create/update/delete addresses
-router.post('/addresses', authenticate, async (req, res) => {
+router.post('/addresses', passport.authenticate('jwt', { session: false }), async (req, res) => {
   try {
     const address = new Address({ ...req.body, user: req.user._id });
     await address.save();
