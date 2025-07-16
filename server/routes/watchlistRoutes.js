@@ -1,69 +1,99 @@
 const express = require('express');
 const router = express.Router();
-const { Watchlist } = require('../modules/watchlistSchema');
-const { Product } = require('../modules/productSchema');
+const Watchlist = require('../modules/watchlistSchema');
+const Product = require('../modules/productSchema');
 const passport = require('passport');
 
-// 1. Get user's watchlist
-router.get('/watchlist', passport.authenticate('jwt', { session: false }), async (req, res) => {
-  try {
-    const watchlist = await Watchlist.findOne({ user: req.user._id })
-      .populate('products.product');
-    
-    if (!watchlist) {
-      return res.json({ products: [] }); // Return empty array if no watchlist exists
+
+
+// GET /api/watchlist - Get user's watchlist
+router.get('/',  passport.authenticate('jwt', { session: false }), async (req, res) => {
+    try {
+        const watchlist = await Watchlist.findOne({ user: req.user.id })
+            .populate('products.product', 'name price images');
+
+        if (!watchlist) {
+            // Return empty array if no watchlist exists
+            return res.json({ products: [] });
+        }
+
+        res.json(watchlist.products);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
     }
-    res.json(watchlist);
-  } catch (err) {
-    res.status(500).send('Server error.');
-  }
 });
 
-// 2. Add product to watchlist
-router.post('/watchlist/add/:productId', passport.authenticate('jwt', { session: false }), async (req, res) => {
-  try {
-    const product = await Product.findById(req.params.productId);
-    if (!product) return res.status(404).send('Product not found.');
+// POST /api/watchlist/:productId - Add to watchlist
+router.post('/:productId',  passport.authenticate('jwt', { session: false }), async (req, res) => {
+    try {
+        // Check if product exists
+        const product = await Product.findById(req.params.productId);
+        if (!product) {
+            return res.status(404).json({ message: 'Product not found' });
+        }
 
-    let watchlist = await Watchlist.findOne({ user: req.user._id });
-    
-    if (!watchlist) {
-      watchlist = new Watchlist({ 
-        user: req.user._id, 
-        products: [{ product: req.params.productId }] 
-      });
-    } else {
-      // Check if product already exists in watchlist
-      const exists = watchlist.products.some(
-        item => item.product.toString() === req.params.productId
-      );
-      if (exists) return res.status(400).send('Product already in watchlist.');
+        // Find or create watchlist for user
+        let watchlist = await Watchlist.findOne({ user: req.user.id });
 
-      watchlist.products.push({ product: req.params.productId });
+        if (!watchlist) {
+            watchlist = new Watchlist({
+                user: req.user.id,
+                products: []
+            });
+        }
+
+        // Check if product already in watchlist
+        const existingItem = watchlist.products.find(
+            item => item.product.toString() === req.params.productId
+        );
+
+        if (existingItem) {
+            return res.status(400).json({ message: 'Product already in watchlist' });
+        }
+
+        // Add product to watchlist
+        watchlist.products.push({
+            product: req.params.productId,
+            addedAt: new Date()
+        });
+
+        await watchlist.save();
+
+        res.status(201).json({ message: 'Product added to watchlist' });
+    } catch (err) {
+        console.error(err);
+        if (err.kind === 'ObjectId') {
+            return res.status(404).json({ message: 'Product not found' });
+        }
+        res.status(500).json({ message: 'Server error' });
     }
-
-    await watchlist.save();
-    res.json(watchlist);
-  } catch (err) {
-    res.status(500).send('Server error.');
-  }
 });
 
-// 3. Remove product from watchlist
-router.delete('/watchlist/remove/:productId', passport.authenticate('jwt', { session: false }), async (req, res) => {
-  try {
-    const watchlist = await Watchlist.findOne({ user: req.user._id });
-    if (!watchlist) return res.status(404).send('Watchlist not found.');
+// DELETE /api/watchlist/:productId - Remove from watchlist
+router.delete('/:productId', passport.authenticate('jwt', { session: false }), async (req, res) => {
+    try {
+        const watchlist = await Watchlist.findOne({ user: req.user.id });
 
-    watchlist.products = watchlist.products.filter(
-      item => item.product.toString() !== req.params.productId
-    );
+        if (!watchlist) {
+            return res.status(404).json({ message: 'Watchlist not found' });
+        }
 
-    await watchlist.save();
-    res.json(watchlist);
-  } catch (err) {
-    res.status(500).send('Server error.');
-  }
+        // Remove product from watchlist
+        watchlist.products = watchlist.products.filter(
+            item => item.product.toString() !== req.params.productId
+        );
+
+        await watchlist.save();
+
+        res.json({ message: 'Product removed from watchlist' });
+    } catch (err) {
+        console.error(err);
+        if (err.kind === 'ObjectId') {
+            return res.status(404).json({ message: 'Invalid product ID' });
+        }
+        res.status(500).json({ message: 'Server error' });
+    }
 });
 
 module.exports = router;

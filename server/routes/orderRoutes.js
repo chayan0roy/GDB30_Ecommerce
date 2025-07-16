@@ -1,125 +1,229 @@
 const express = require('express');
 const router = express.Router();
-const { Order } = require('../modules/orderSchema');
-const { Cart } = require('../modules/cartSchema');
-const { Product } = require('../modules/productSchema');
+const Order = require('../modules/orderSchema');
+const Cart = require('../modules/cartSchema');
+const Product = require('../modules/productSchema');
+const Address = require('../modules/addressSchema');
 const passport = require('passport');
 
-// 1. Get all orders (user-specific or admin)
-router.get('/orders', passport.authenticate('jwt', { session: false }), async (req, res) => {
-  try {
-    const orders = req.user.role === 'admin' 
-      ? await Order.find({}).populate('user items.product shippingAddress')
-      : await Order.find({ user: req.user._id }).populate('items.product shippingAddress');
-    
-    res.json(orders);
-  } catch (err) {
-    res.status(500).send('Server error.');
-  }
+
+// POST /api/orders - Create new order
+router.post('/', passport.authenticate('jwt', { session: false }), async (req, res) => {
+    try {
+        const { shippingAddress, paymentMethod } = req.body;
+
+        // Get user's cart
+        const cart = await Cart.findOne({ user: req.user.id }).populate('items.product');
+        if (!cart || cart.items.length === 0) {
+            return res.status(400).json({ message: 'No items in cart' });
+        }
+
+        // Verify shipping address belongs to user
+        const address = await Address.findOne({ 
+            _id: shippingAddress, 
+            user: req.user.id 
+        });
+        if (!address) {
+            return res.status(400).json({ message: 'Invalid shipping address' });
+        }
+
+        // Check product availability and calculate total
+        const items = [];
+        let subtotal = 0;
+
+        for (const item of cart.items) {
+            const product = await Product.findById(item.product._id);
+            if (!product) {
+                return res.status(400).json({ message: `Product ${item.product.name} no longer available` });
+            }
+
+            if (product.quantity < item.quantity) {
+                return res.status(400).json({ 
+                    message: `Insufficient quantity for ${item.product.name}`
+                });
+            }
+
+            const price = product.discount > 0 ? 
+                product.price * (1 - product.discount / 100) : 
+                product.price;
+
+            items.push({
+                product: item.product._id,
+                quantity: item.quantity,
+                price: price
+            });
+
+            subtotal += price * item.quantity;
+        }
+
+        // Create order
+        const order = new Order({
+            user: req.user.id,
+            items,
+            shippingAddress,
+            paymentMethod,
+            subtotal,
+            shippingFee: subtotal > 500 ? 0 : 50, // Example shipping logic
+            totalAmount: subtotal + (subtotal > 500 ? 0 : 50)
+        });
+
+        // Save order
+        await order.save();
+
+        // Update product quantities
+        for (const item of cart.items) {
+            await Product.updateOne(
+                { _id: item.product._id },
+                { $inc: { quantity: -item.quantity } }
+            );
+        }
+
+        // Clear user's cart
+        await Cart.deleteOne({ user: req.user.id });
+
+        res.status(201).json(order);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
 });
 
-// 2. Get order by ID
-router.get('/orders/:id', passport.authenticate('jwt', { session: false }), async (req, res) => {
-  try {
-    const order = await Order.findById(req.params.id)
-      .populate('user items.product shippingAddress');
-    
-    if (!order) return res.status(404).send('Order not found.');
-    
-    // Restrict access to owner/admin
-    if (order.user._id.toString() !== req.user._id && req.user.role !== 'admin') {
-      return res.status(403).send('Forbidden.');
+// GET /api/orders - Get user's orders
+router.get('/', passport.authenticate('jwt', { session: false }), async (req, res) => {
+    try {
+        const orders = await Order.find({ user: req.user.id })
+            .sort({ createdAt: -1 })
+            .populate('items.product', 'name images');
+        res.json(orders);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
     }
-    
-    res.json(order);
-  } catch (err) {
-    res.status(500).send('Server error.');
-  }
 });
 
-// 3. Create new order from cart
-router.post('/orders/create', passport.authenticate('jwt', { session: false }), async (req, res) => {
-  const { shippingAddressId, paymentMethod } = req.body;
-  
-  try {
-    // Fetch user's cart
-    const cart = await Cart.findOne({ user: req.user._id }).populate('items.product');
-    if (!cart || cart.items.length === 0) {
-      return res.status(400).send('Cart is empty.');
+// GET /api/orders/:id - Get order details
+router.get('/:id', passport.authenticate('jwt', { session: false }), async (req, res) => {
+    try {
+        const order = await Order.findOne({ 
+            _id: req.params.id, 
+            user: req.user.id 
+        })
+        .populate('items.product', 'name images price discount')
+        .populate('shippingAddress');
+
+        if (!order) {
+            return res.status(404).json({ message: 'Order not found' });
+        }
+
+        res.json(order);
+    } catch (err) {
+        console.error(err);
+        if (err.kind === 'ObjectId') {
+            return res.status(404).json({ message: 'Order not found' });
+        }
+        res.status(500).json({ message: 'Server error' });
     }
-
-    // Validate stock
-    for (const item of cart.items) {
-      const product = await Product.findById(item.product._id);
-      if (product.quantity < item.quantity) {
-        return res.status(400).send(`Insufficient stock for ${product.name}.`);
-      }
-    }
-
-    // Create order
-    const order = new Order({
-      user: req.user._id,
-      items: cart.items.map(item => ({
-        product: item.product._id,
-        quantity: item.quantity,
-        price: item.price
-      })),
-      shippingAddress: shippingAddressId,
-      paymentMethod,
-      subtotal: cart.totalPrice,
-      totalAmount: cart.totalPrice // Add shipping fee logic if needed
-    });
-
-    // Reduce product quantities
-    for (const item of cart.items) {
-      await Product.findByIdAndUpdate(
-        item.product._id,
-        { $inc: { quantity: -item.quantity } }
-      );
-    }
-
-    // Clear cart
-    await Cart.findByIdAndDelete(cart._id);
-
-    await order.save();
-    res.status(201).json(order);
-  } catch (err) {
-    res.status(500).send('Server error.');
-  }
 });
 
-// 4. Cancel order
-router.patch('/orders/cancel/:id', passport.authenticate('jwt', { session: false }), async (req, res) => {
-  try {
-    const order = await Order.findById(req.params.id);
-    if (!order) return res.status(404).send('Order not found.');
+// PUT /api/orders/:id/cancel - Cancel order
+router.put('/:id/cancel', passport.authenticate('jwt', { session: false }), async (req, res) => {
+    try {
+        const order = await Order.findOne({ 
+            _id: req.params.id, 
+            user: req.user.id 
+        });
 
-    // Validate ownership
-    if (order.user.toString() !== req.user._id && req.user.role !== 'admin') {
-      return res.status(403).send('Forbidden.');
+        if (!order) {
+            return res.status(404).json({ message: 'Order not found' });
+        }
+
+        // Only allow cancellation if order is pending
+        if (order.orderStatus !== 'pending') {
+            return res.status(400).json({ 
+                message: 'Order can only be cancelled when in pending status' 
+            });
+        }
+
+        order.orderStatus = 'cancelled';
+        await order.save();
+
+        // Restore product quantities
+        for (const item of order.items) {
+            await Product.updateOne(
+                { _id: item.product },
+                { $inc: { quantity: item.quantity } }
+            );
+        }
+
+        res.json({ message: 'Order cancelled successfully' });
+    } catch (err) {
+        console.error(err);
+        if (err.kind === 'ObjectId') {
+            return res.status(404).json({ message: 'Order not found' });
+        }
+        res.status(500).json({ message: 'Server error' });
     }
+});
 
-    // Only allow cancellation for pending/processing orders
-    if (!['pending', 'processing'].includes(order.orderStatus)) {
-      return res.status(400).send('Order cannot be cancelled at this stage.');
+
+// GET /api/admin/orders - Get all orders (admin only)
+router.get('/admin/orders', async (req, res) => {
+    try {
+        const { status, page = 1, limit = 10 } = req.query;
+        const filter = {};
+        
+        if (status) filter.orderStatus = status;
+
+        const orders = await Order.find(filter)
+            .sort({ createdAt: -1 })
+            .populate('user', 'username email')
+            .limit(limit * 1)
+            .skip((page - 1) * limit);
+
+        const count = await Order.countDocuments(filter);
+
+        res.json({
+            orders,
+            totalPages: Math.ceil(count / limit),
+            currentPage: page
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
     }
+});
 
-    // Restore product quantities
-    if (order.orderStatus === 'processing') {
-      for (const item of order.items) {
-        await Product.findByIdAndUpdate(
-          item.product,
-          { $inc: { quantity: item.quantity } }
-        );
-      }
+// PUT /api/admin/orders/:id/status - Update order status (admin only)
+router.put('/admin/orders/:id/status', async (req, res) => {
+    try {
+        const { status } = req.body;
+
+        const validStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+        if (!validStatuses.includes(status)) {
+            return res.status(400).json({ message: 'Invalid status' });
+        }
+
+        const order = await Order.findById(req.params.id);
+        if (!order) {
+            return res.status(404).json({ message: 'Order not found' });
+        }
+
+        // Prevent updating to same status
+        if (order.orderStatus === status) {
+            return res.status(400).json({ message: 'Order already has this status' });
+        }
+
+        order.orderStatus = status;
+        await order.save();
+
+        res.json({ message: 'Order status updated successfully' });
+    } catch (err) {
+        console.error(err);
+        if (err.kind === 'ObjectId') {
+            return res.status(404).json({ message: 'Order not found' });
+        }
+        res.status(500).json({ message: 'Server error' });
     }
-
-    order.orderStatus = 'cancelled';
-    await order.save();
-    res.json(order);
-  } catch (err) {
-    res.status(500).send('Server error.');
-  }
 });
 
 module.exports = router;
