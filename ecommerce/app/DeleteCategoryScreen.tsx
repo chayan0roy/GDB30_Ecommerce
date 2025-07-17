@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Alert, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function DeleteCategoryScreen() {
   const [category] = useState({

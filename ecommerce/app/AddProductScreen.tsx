@@ -2,6 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+
 
 export default function AddProductScreen() {
 	const [product, setProduct] = useState({
@@ -60,7 +63,7 @@ export default function AddProductScreen() {
 			}
 
 
-			const response = await axios.post(`${API_URL}/addProduct`, formData, {
+			const response = await axios.post(`http://192.168.0.105:5000/products/addProduct`, formData, {
 				headers: {
 					'Authorization': `Bearer ${token}`,
 					'Content-Type': 'multipart/form-data',

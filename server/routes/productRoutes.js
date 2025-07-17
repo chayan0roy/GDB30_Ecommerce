@@ -6,7 +6,7 @@ const passport = require('passport');
 
 
 // POST /api/products - Create product (admin only)
-router.post('addProduct/', passport.authenticate('jwt', { session: false }), async (req, res) => {
+router.post('/addProduct', passport.authenticate('jwt', { session: false }), async (req, res) => {
     try {
         const { 
             name, 
@@ -44,7 +44,7 @@ router.post('addProduct/', passport.authenticate('jwt', { session: false }), asy
 });
 
 // GET /api/products - Get all products (with filters)
-router.get('/', async (req, res) => {
+router.get('/getAllProduct', async (req, res) => {
     try {
         const { category, featured, search, minPrice, maxPrice } = req.query;
         const filter = {};

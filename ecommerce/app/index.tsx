@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native'
 import React from 'react'
-import AddProductScreen from './AddProductScreen'
+import AddProductScreen from './Register'
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const index = () => {
   return (

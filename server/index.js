@@ -29,14 +29,14 @@ app.use(passport.initialize());
 
 
 
-app.use('/api', userRoutes);
-app.use('/api/products', productRoutes);
-app.use('/api/cart', cartRoutes);
-app.use('/api/watchlist', watchlistRoutes);
-app.use('/api/orders', orderRoutes);
-app.use('/api/categories', categoryRoutes);
-app.use('/api/banners', bannerRoutes);
-app.use('/api/addresses', addressRoutes);
+app.use('/user', userRoutes);
+app.use('/products', productRoutes);
+app.use('/cart', cartRoutes);
+app.use('/watchlist', watchlistRoutes);
+app.use('/orders', orderRoutes);
+app.use('/categories', categoryRoutes);
+app.use('/banners', bannerRoutes);
+app.use('/addresses', addressRoutes);
 
 
 app.listen(process.env.PORT, () => {

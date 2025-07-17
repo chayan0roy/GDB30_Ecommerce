@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { Image, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function AddBannerScreen() {
