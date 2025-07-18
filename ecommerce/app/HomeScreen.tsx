@@ -1,83 +1,108 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRef, useState } from 'react';
-import { Dimensions, FlatList, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useRef, useState, useEffect } from 'react';
+import { Dimensions, FlatList, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import Carousel from 'react-native-reanimated-carousel';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
 
 const { width } = Dimensions.get('window');
 
-// Sample data
-const banners = [
-  { id: '1', image: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=500&auto=format&fit=crop&q=60' },
-  { id: '2', image: 'https://images.unsplash.com/photo-1555529669-e69e7aa0ba9a?w=500&auto=format&fit=crop&q=60' },
-  { id: '3', image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&auto=format&fit=crop&q=60' },
-];
-
-const categories = [
-  { id: '1', name: 'Electronics', image: 'https://cdn-icons-png.flaticon.com/512/3659/3659899.png' },
-  { id: '2', name: 'Fashion', image: 'https://cdn-icons-png.flaticon.com/512/3081/3081828.png' },
-  { id: '3', name: 'Home', image: 'https://cdn-icons-png.flaticon.com/512/2373/2373936.png' },
-  { id: '4', name: 'Beauty', image: 'https://cdn-icons-png.flaticon.com/512/3081/3081839.png' },
-  { id: '5', name: 'Sports', image: 'https://cdn-icons-png.flaticon.com/512/857/857455.png' },
-  { id: '6', name: 'Books', image: 'https://cdn-icons-png.flaticon.com/512/2702/2702069.png' },
-];
-
-const products = [
-  {
-    id: '1',
-    name: 'Premium Smartphone X200',
-    price: 599,
-    originalPrice: 699,
-    image: 'https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=500&auto=format&fit=crop&q=60',
-    rating: 4.5,
-  },
-  {
-    id: '2',
-    name: 'Wireless Headphones Pro',
-    price: 129,
-    originalPrice: 199,
-    image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60',
-    rating: 4.2,
-  },
-  {
-    id: '3',
-    name: 'Smart Watch Series 5',
-    price: 249,
-    originalPrice: 299,
-    image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&auto=format&fit=crop&q=60',
-    rating: 4.7,
-  },
-  {
-    id: '4',
-    name: 'Bluetooth Speaker',
-    price: 89,
-    originalPrice: 129,
-    image: 'https://images.unsplash.com/photo-1572569511254-d8f925fe2cbb?w=500&auto=format&fit=crop&q=60',
-    rating: 4.3,
-  },
-];
-
 export default function HomeScreen() {
   const [activeIndex, setActiveIndex] = useState(0);
-  const [wishlist, setWishlist] = useState<string[]>([]); // Track wishlist items by ID
+  const [wishlist, setWishlist] = useState<string[]>([]);
+  const [banners, setBanners] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const carouselRef = useRef(null);
 
-  const toggleWishlist = (productId: string) => {
-    if (wishlist.includes(productId)) {
-      setWishlist(wishlist.filter(id => id !== productId));
-    } else {
-      setWishlist([...wishlist, productId]);
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const token = await AsyncStorage.getItem('userToken');
+
+        // Fetch all data in parallel
+        const [bannersRes, categoriesRes, productsRes] = await Promise.all([
+          axios.get('http://192.168.0.105:5000/banners/allBanner'),
+          axios.get('http://192.168.0.105:5000/categories/getAllCategories'),
+          axios.get('http://192.168.0.105:5000/products/allProduct', {
+            headers: token ? { Authorization: `Bearer ${token}` } : {}
+          })
+        ]);
+
+        setBanners(bannersRes.data);
+        setCategories(categoriesRes.data.categories);
+        setProducts(productsRes.data);
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching data:', err);
+        setError(err.message);
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+
+
+  console.log(banners);
+
+
+  const toggleWishlist = async (productId: string) => {
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      if (!token) {
+        alert('Please login to add to wishlist');
+        return;
+      }
+
+      if (wishlist.includes(productId)) {
+        await axios.delete(`http://192.168.0.105:5000/wishlist/remove/${productId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setWishlist(wishlist.filter(id => id !== productId));
+      } else {
+        await axios.post(`http://192.168.0.105:5000/wishlist/add/${productId}`, {}, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setWishlist([...wishlist, productId]);
+      }
+    } catch (err) {
+      console.error('Wishlist error:', err);
+      alert('Failed to update wishlist');
     }
   };
 
-  const addToCart = (productId: string) => {
-    // In a real app, you would add to cart logic here
-    alert(`Product ${productId} added to cart!`);
+  const addToCart = async (productId: string) => {
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      if (!token) {
+        alert('Please login to add to cart');
+        return;
+      }
+
+      await axios.post(`http://192.168.0.105:5000/cart/add/${productId}`, {
+        quantity: 1
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      alert('Product added to cart!');
+    } catch (err) {
+      console.error('Add to cart error:', err);
+      alert('Failed to add to cart');
+    }
   };
 
   const renderBannerItem = ({ item }) => (
     <View style={styles.bannerContainer}>
-      <Image source={{ uri: item.image }} style={styles.bannerImage} />
+      <Image
+        source={{ uri: `http://192.168.0.105:5000/${item.image.replace(/\\/g, '/')}` }}
+        style={styles.bannerImage}
+        resizeMode="cover"
+      />
       <View style={styles.bannerOverlay} />
     </View>
   );
@@ -85,7 +110,11 @@ export default function HomeScreen() {
   const renderCategoryItem = ({ item }) => (
     <TouchableOpacity style={styles.categoryItem}>
       <View style={styles.categoryImageContainer}>
-        <Image source={{ uri: item.image }} style={styles.categoryImage} />
+        {item.image ? (
+          <Image source={{ uri: `http://192.168.0.105:5000/${item.image.replace(/\\/g, '/')}` }} style={styles.categoryImage} />
+        ) : (
+          <Ionicons name="image" size={30} color="#95a5a6" />
+        )}
       </View>
       <Text style={styles.categoryName}>{item.name}</Text>
     </TouchableOpacity>
@@ -93,46 +122,44 @@ export default function HomeScreen() {
 
   const renderProductItem = ({ item }) => (
     <View style={styles.productCard}>
-      {/* Product Image with Wishlist Button */}
       <View style={styles.productImageContainer}>
-        <Image source={{ uri: item.image }} style={styles.productImage} />
-        
-        {/* Wishlist Button */}
-        <TouchableOpacity 
+        <Image source={{ uri: `http://192.168.0.105:5000/${item.image.replace(/\\/g, '/')}` }} style={styles.productImage} />
+
+        <TouchableOpacity
           style={styles.wishlistButton}
-          onPress={() => toggleWishlist(item.id)}
+          onPress={() => toggleWishlist(item._id)}
         >
-          <Ionicons 
-            name={wishlist.includes(item.id) ? "heart" : "heart-outline"} 
-            size={20} 
-            color={wishlist.includes(item.id) ? "#e74c3c" : "#fff"} 
+          <Ionicons
+            name={wishlist.includes(item._id) ? "heart" : "heart-outline"}
+            size={20}
+            color={wishlist.includes(item._id) ? "#e74c3c" : "#fff"}
           />
         </TouchableOpacity>
-        
-        {/* Discount Badge */}
-        <View style={styles.discountBadge}>
-          <Text style={styles.discountText}>
-            {Math.round(((item.originalPrice - item.price) / item.originalPrice) * 100)}% OFF
-          </Text>
-        </View>
+
+        {item.discount > 0 && (
+          <View style={styles.discountBadge}>
+            <Text style={styles.discountText}>
+              {item.discount}% OFF
+            </Text>
+          </View>
+        )}
       </View>
 
-      {/* Product Details */}
       <View style={styles.productDetails}>
         <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
+        <Text style={styles.productDescription} numberOfLines={2}>{item.description}</Text>
         <View style={styles.priceContainer}>
           <Text style={styles.currentPrice}>${item.price}</Text>
-          <Text style={styles.originalPrice}>${item.originalPrice}</Text>
+          {item.discount > 0 && (
+            <Text style={styles.originalPrice}>
+              ${Math.round(item.price / (1 - item.discount / 100))}
+            </Text>
+          )}
         </View>
-        <View style={styles.ratingContainer}>
-          <Ionicons name="star" size={16} color="#FFD700" />
-          <Text style={styles.ratingText}>{item.rating}</Text>
-        </View>
-        
-        {/* Add to Cart Button */}
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={styles.addToCartButton}
-          onPress={() => addToCart(item.id)}
+          onPress={() => addToCart(item._id)}
         >
           <Text style={styles.addToCartText}>Add to Cart</Text>
         </TouchableOpacity>
@@ -140,9 +167,27 @@ export default function HomeScreen() {
     </View>
   );
 
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#e74c3c" />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>Error loading data: {error}</Text>
+        <TouchableOpacity onPress={() => window.location.reload()}>
+          <Text style={styles.retryText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      {/* Search Bar */}
       <View style={styles.searchContainer}>
         <View style={styles.searchBar}>
           <Ionicons name="search" size={20} color="#95a5a6" style={styles.searchIcon} />
@@ -158,34 +203,34 @@ export default function HomeScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Banner Slider */}
-        <View style={styles.bannerSection}>
-          <Carousel
-            ref={carouselRef}
-            loop
-            width={width}
-            height={200}
-            autoPlay={true}
-            data={banners}
-            scrollAnimationDuration={1000}
-            autoPlayInterval={3000}
-            onSnapToItem={(index) => setActiveIndex(index)}
-            renderItem={renderBannerItem}
-          />
-          <View style={styles.pagination}>
-            {banners.map((_, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.paginationDot,
-                  index === activeIndex && styles.activeDot
-                ]}
-              />
-            ))}
+        {banners.length > 0 && (
+          <View style={styles.bannerSection}>
+            <Carousel
+              ref={carouselRef}
+              loop
+              width={width}
+              height={200}
+              autoPlay={true}
+              data={banners}
+              scrollAnimationDuration={1000}
+              autoPlayInterval={3000}
+              onSnapToItem={(index) => setActiveIndex(index)}
+              renderItem={renderBannerItem}
+            />
+            <View style={styles.pagination}>
+              {banners.map((_, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.paginationDot,
+                    index === activeIndex && styles.activeDot
+                  ]}
+                />
+              ))}
+            </View>
           </View>
-        </View>
+        )}
 
-        {/* Categories */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Categories</Text>
@@ -199,11 +244,10 @@ export default function HomeScreen() {
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.categoryList}
-            keyExtractor={item => item.id}
+            keyExtractor={item => item._id}
           />
         </View>
 
-        {/* Products */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Popular Products</Text>
@@ -217,7 +261,7 @@ export default function HomeScreen() {
             numColumns={2}
             columnWrapperStyle={styles.productRow}
             scrollEnabled={false}
-            keyExtractor={item => item.id}
+            keyExtractor={item => item._id}
           />
         </View>
       </ScrollView>
@@ -229,6 +273,26 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    color: '#e74c3c',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  retryText: {
+    color: '#3498db',
+    fontWeight: 'bold',
   },
   searchContainer: {
     padding: 16,
@@ -406,7 +470,11 @@ const styles = StyleSheet.create({
     color: '#2c3e50',
     fontWeight: '600',
     marginBottom: 8,
-    height: 36,
+  },
+  productDescription:{
+    fontSize: 12,
+    color: '#7f8c8d',
+    marginBottom: 8,
   },
   priceContainer: {
     flexDirection: 'row',
@@ -423,16 +491,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#95a5a6',
     textDecorationLine: 'line-through',
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  ratingText: {
-    marginLeft: 4,
-    fontSize: 12,
-    color: '#2c3e50',
   },
   addToCartButton: {
     backgroundColor: '#e74c3c',

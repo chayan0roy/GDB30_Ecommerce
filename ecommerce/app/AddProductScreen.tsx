@@ -27,7 +27,7 @@ export default function AddProductScreen() {
 
     const fetchCategories = async () => {
         try {
-            const response = await axios.get('http://192.168.0.105:5000/categories');
+            const response = await axios.get('http://192.168.0.105:5000/categories/getAllCategories');
             if (response.data.success) {
                 const formattedCategories = response.data.categories.map(cat => ({
                     label: cat.name,

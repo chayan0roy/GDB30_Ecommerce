@@ -19,12 +19,12 @@ router.post('/addProduct', passport.authenticate('jwt', { session: false }), sin
             categorie,
         } = req.body;
 
+        
         // Check if category exists
         const category = await Category.findById(categorie);
         if (!category) {
             return res.status(400).json({ message: 'Invalid category' });
         }
-
         const product = new Product({
             name,
             description,
