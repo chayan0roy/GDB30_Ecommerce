@@ -3,19 +3,20 @@ const router = express.Router();
 const Product = require('../modules/productSchema');
 const Category = require('../modules/categorySchema');
 const passport = require('passport');
+const { singleImageUpload } = require('../middleware/multer');
+
 
 
 // POST /api/products - Create product (admin only)
-router.post('/addProduct', passport.authenticate('jwt', { session: false }), async (req, res) => {
+router.post('/addProduct', passport.authenticate('jwt', { session: false }), singleImageUpload, async (req, res) => {
     try {
-        const { 
-            name, 
-            description, 
-            price, 
+        const {
+            name,
+            description,
+            price,
             discount,
             quantity,
             categorie,
-            images,
         } = req.body;
 
         // Check if category exists
@@ -31,7 +32,7 @@ router.post('/addProduct', passport.authenticate('jwt', { session: false }), asy
             discount,
             quantity,
             categorie,
-            images,
+            image: req.file ? req.file.path.replace(/\\/g, '/') : null
         });
 
         await product.save();
@@ -43,8 +44,28 @@ router.post('/addProduct', passport.authenticate('jwt', { session: false }), asy
     }
 });
 
-// GET /api/products - Get all products (with filters)
-router.get('/getAllProduct', async (req, res) => {
+
+
+
+
+
+
+
+router.get('/allProduct', async (req, res) => {
+    try {
+        const products = await Product.find().sort({ createdAt: -1 });
+        res.json(products);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+
+
+
+
+router.get('/getFilteredProduct', async (req, res) => {
     try {
         const { category, featured, search, minPrice, maxPrice } = req.query;
         const filter = {};
@@ -91,10 +112,10 @@ router.get('/:id', async (req, res) => {
 // PUT /api/products/:id - Update product (admin only)
 router.put('/:id', passport.authenticate('jwt', { session: false }), async (req, res) => {
     try {
-        const { 
-            name, 
-            description, 
-            price, 
+        const {
+            name,
+            description,
+            price,
             discount,
             quantity,
             categorie,
@@ -112,10 +133,10 @@ router.put('/:id', passport.authenticate('jwt', { session: false }), async (req,
 
         const product = await Product.findByIdAndUpdate(
             req.params.id,
-            { 
-                name, 
-                description, 
-                price, 
+            {
+                name,
+                description,
+                price,
                 discount,
                 quantity,
                 categorie,
@@ -143,7 +164,7 @@ router.put('/:id', passport.authenticate('jwt', { session: false }), async (req,
 router.delete('/:id', passport.authenticate('jwt', { session: false }), async (req, res) => {
     try {
         const product = await Product.findByIdAndDelete(req.params.id);
-        
+
         if (!product) {
             return res.status(404).json({ message: 'Product not found' });
         }
@@ -172,8 +193,8 @@ router.get('/featured', async (req, res) => {
 // GET /api/products/category/:categoryId - Get products by category
 router.get('/category/:categoryId', async (req, res) => {
     try {
-        const products = await Product.find({ 
-            categorie: req.params.categoryId 
+        const products = await Product.find({
+            categorie: req.params.categoryId
         }).populate('categorie');
 
         res.json(products);
@@ -190,7 +211,7 @@ router.get('/category/:categoryId', async (req, res) => {
 router.post('/:id/reviews', passport.authenticate('jwt', { session: false }), async (req, res) => {
     try {
         const { rating, comment } = req.body;
-        
+
         const product = await Product.findById(req.params.id);
         if (!product) {
             return res.status(404).json({ message: 'Product not found' });
@@ -205,10 +226,10 @@ router.post('/:id/reviews', passport.authenticate('jwt', { session: false }), as
 
         product.reviews.push(review);
         product.numReviews = product.reviews.length;
-        
+
         // Calculate average rating
-        product.rating = product.reviews.reduce((acc, item) => item.rating + acc, 0) / 
-                         product.reviews.length;
+        product.rating = product.reviews.reduce((acc, item) => item.rating + acc, 0) /
+            product.reviews.length;
 
         await product.save();
 

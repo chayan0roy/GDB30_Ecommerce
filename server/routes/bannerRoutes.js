@@ -2,13 +2,14 @@ const express = require('express');
 const router = express.Router();
 const Banner = require('../modules/bannerSchema');
 const passport = require('passport');
+const { singleImageUpload } = require('../middleware/multer');
+
 
 
 // POST /api/banners - Create banner (admin only)
-router.post('/', passport.authenticate('jwt', { session: false }), async (req, res) => {
+router.post('/addBanner', passport.authenticate('jwt', { session: false }), singleImageUpload, async (req, res) => {
     try {
-        const { title, subtitle, image, link, isActive } = req.body;
-
+        const { title, subtitle, link, isActive } = req.body;
         // Get the current highest order value
         const highestOrderBanner = await Banner.findOne().sort('-order');
         const order = highestOrderBanner ? highestOrderBanner.order + 1 : 1;
@@ -16,7 +17,7 @@ router.post('/', passport.authenticate('jwt', { session: false }), async (req, r
         const banner = new Banner({
             title,
             subtitle,
-            image,
+            image: req.file ? req.file.path.replace(/\\/g, '/') : null,
             link,
             isActive: isActive || false,
             order
@@ -32,7 +33,7 @@ router.post('/', passport.authenticate('jwt', { session: false }), async (req, r
 });
 
 // GET /api/banners - Get all banners (active first)
-router.get('/', async (req, res) => {
+router.get('/allBanner', async (req, res) => {
     try {
         const banners = await Banner.find().sort({ order: 1 });
         res.json(banners);
@@ -88,7 +89,7 @@ router.put('/:id', passport.authenticate('jwt', { session: false }), async (req,
 router.delete('/:id', passport.authenticate('jwt', { session: false }), async (req, res) => {
     try {
         const banner = await Banner.findByIdAndDelete(req.params.id);
-        
+
         if (!banner) {
             return res.status(404).json({ message: 'Banner not found' });
         }
@@ -124,7 +125,7 @@ router.put('/:id/activate', passport.authenticate('jwt', { session: false }), as
             return res.status(404).json({ message: 'Banner not found' });
         }
 
-        res.json({ 
+        res.json({
             message: `Banner ${isActive ? 'activated' : 'deactivated'} successfully`,
             banner
         });

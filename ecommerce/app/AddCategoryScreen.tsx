@@ -1,68 +1,122 @@
+import React, { useState } from 'react';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  TextInput, 
+  TouchableOpacity, 
+  Image, 
+  Alert,
+  ActivityIndicator,
+  Platform
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { useState } from 'react';
-import { Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import * as FileSystem from 'expo-file-system';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+
 
 export default function AddCategoryScreen() {
-	const [category, setCategory] = useState({
-		image: null,
-		name: ''
-	});
+	 const [category, setCategory] = useState({
+    image: null,
+    name: ''
+  });
+  const [isLoading, setIsLoading] = useState(false);
 
-	const pickImage = async () => {
-		let result = await ImagePicker.launchImageLibraryAsync({
-			mediaTypes: ImagePicker.MediaTypeOptions.Images,
-			allowsEditing: true,
-			aspect: [4, 3],
-			quality: 1,
-		});
+  const pickImage = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission required', 'We need camera roll permissions to upload images');
+        return;
+      }
 
-		if (!result.canceled) {
-			setCategory({ ...category, image: result.assets[0].uri });
-		}
-	};
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
 
+      if (!result.canceled && result.assets) {
+        setCategory({ ...category, image: result.assets[0].uri });
+      }
+    } catch (error) {
+      console.error('Image picker error:', error);
+      Alert.alert('Error', 'Failed to pick image');
+    }
+  };
 
+  const getFileInfo = async (fileUri) => {
+    const fileInfo = await FileSystem.getInfoAsync(fileUri);
+    if (!fileInfo.exists) {
+      throw new Error('File does not exist');
+    }
+    
+    let filename = fileUri.split('/').pop();
+    let filetype = filename.split('.').pop();
+    
+    // Map file extension to MIME type
+    const mimeTypeMap = {
+      jpg: 'image/jpeg',
+      jpeg: 'image/jpeg',
+      png: 'image/png',
+      gif: 'image/gif',
+      webp: 'image/webp',
+    };
+    
+    const mimeType = mimeTypeMap[filetype.toLowerCase()] || 'image/jpeg';
+    
+    return {
+      uri: fileUri,
+      name: filename,
+      type: mimeType,
+    };
+  };
 
+  const handleAddCategory = async () => {
+    if (!category.name.trim()) {
+      Alert.alert('Validation Error', 'Please enter a category name');
+      return;
+    }
 
-	const handleAddCategory = async () => {
-		try {
+    setIsLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('userToken');	  
+      if (!token) {
+        throw new Error('Authentication token not found');
+      }
 
-			const formData = new FormData();
-			formData.append('name', category.name);
+      const formData = new FormData();
+      formData.append('name', category.name);
 
-			if (category.image) {
-				formData.append('image', {
-					uri: category.image,
-					type: 'image/jpeg',
-					name: `category_${Date.now()}.jpg`
-				});
-			}
+      if (category.image) {
+        const fileInfo = await getFileInfo(category.image);
+        formData.append('image', fileInfo);
+      }
 
-			const token = await AsyncStorage.getItem('userToken');
+      const response = await axios.post(
+        'http://192.168.0.105:5000/categories/createCategory',
+        formData,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
 
-			const response = await axios.post(`${API_URL}/categories`, formData, {
-				headers: {
-					'Authorization': `Bearer ${token}`,
-					'Content-Type': 'multipart/form-data',
-				},
-			});
-			if (!response.ok) {
-				const errorData = await response.json();
-				throw new Error(errorData.message || 'Failed to create category');
-			}
-
-			const createdCategory = await response.json();
-			console.log('Category created successfully:', createdCategory);
-
-			return createdCategory;
-
-		} catch (error) {
-			console.error('Category creation failed:', error);
-			throw error;
-		}
-	};
+      Alert.alert('Success', 'Category created successfully');
+      setCategory({ image: null, name: '' });
+    } catch (error) {
+      console.error('Category creation failed:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to create category';
+      Alert.alert('Error', errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
 
 

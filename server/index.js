@@ -2,7 +2,7 @@ const express = require('express');
 const app = express();
 const dotenv = require('dotenv');
 const passport = require('passport');
-
+const path = require('path');
 
 const db = require('./config/db');
 require('./middleware/passport-config')
@@ -27,7 +27,7 @@ app.use(express.json());
 
 app.use(passport.initialize());
 
-
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.use('/user', userRoutes);
 app.use('/products', productRoutes);

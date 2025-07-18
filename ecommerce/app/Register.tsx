@@ -35,13 +35,13 @@ const RegisterScreen = () => {
 
     try {
       const response = await axios.post('http://192.168.0.105:5000/user/register', {
-        name,
+        username:name,
         email,
         password,
         phoneNumber
       });
 
-      if (response.status === 201 || response.status === 200) {
+      if (response.status === 201 || response.status === 200) {        
         await AsyncStorage.setItem('userToken', response.data.token);
       } else {
         Alert.alert('Failed', 'Unexpected error occurred');
