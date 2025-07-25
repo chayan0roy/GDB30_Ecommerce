@@ -93,7 +93,7 @@ router.get('/getFilteredProduct', async (req, res) => {
 });
 
 // GET /api/products/:id - Get single product
-router.get('/:id', async (req, res) => {
+router.get('/getProduct/:id', async (req, res) => {
     try {
         const product = await Product.findById(req.params.id).populate('categorie');
         if (!product) {

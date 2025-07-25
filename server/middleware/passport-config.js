@@ -12,6 +12,7 @@ var opts = {
 passport.use(new JwtStrategy(opts, async function (jwt_payload, done) {
     try {
         const user = await userSchema.findOne({ _id: jwt_payload.id }).select('-password')
+        
         if (user) {
             return done(null, user)
         } else {

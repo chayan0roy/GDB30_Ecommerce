@@ -10,15 +10,6 @@ const { singleImageUpload } = require('../middleware/multer');
 
 
 
-
-
-
-
-
-
-
-
-
 // Create category
 router.post('/createCategory', 
   passport.authenticate('jwt', { session: false }), 
@@ -61,7 +52,7 @@ router.post('/createCategory',
 // Get all categories
 router.get('/getAllCategories', async (req, res) => {
   try {
-    const categories = await Category.find().sort({ createdAt: -1 });
+    const categories = await Category.find().sort({ createdAt: -1 });        
     res.json({ 
       success: true,
       categories 
@@ -99,7 +90,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Update category
-router.put('/:id', 
+router.put('/update/:id', 
   passport.authenticate('jwt', { session: false }), 
   singleImageUpload,
   async (req, res) => {
@@ -137,8 +128,31 @@ router.put('/:id',
     }
 });
 
+router.put('/updateImage/:id', passport.authenticate('jwt', { session: false }), singleImageUpload, async (req, res) => {
+	try {
+		if (!req.file) {
+			return res.status(400).json({ message: 'No image provided' });
+		}
+
+		const category = await Category.findByIdAndUpdate(
+			req.params.id,
+			{ image: req.file.path.replace(/\\/g, '/') },
+			{ new: true }
+		);
+
+		if (!category) {
+			return res.status(404).json({ message: 'Category not found' });
+		}
+
+		res.json(category);
+	} catch (err) {
+		console.error(err);
+		res.status(500).json({ message: 'Server error' });
+	}
+});
+
 // Delete category
-router.delete('/:id', 
+router.delete('/delete/:id', 
   passport.authenticate('jwt', { session: false }), 
   async (req, res) => {
     try {

@@ -33,6 +33,8 @@ const LoginScreen = () => {
 
       if (response.status === 200) {
        await AsyncStorage.setItem('userToken', response.data.token);
+       console.log(response.data.token);
+       
       } else {
         Alert.alert('Login Failed', 'Unexpected error');
       }

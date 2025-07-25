@@ -1,46 +1,101 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
-import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import axios from 'axios';
+import { useEffect, useState } from 'react';
 
-const productData = {
-  id: '1',
-  name: 'Premium Smartphone X200',
-  price: '$599',
-  originalPrice: '$699',
-  discount: '14% off',
-  image: 'https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=500&auto=format&fit=crop&q=60',
-  rating: 4.5,
-  reviewCount: 1243,
-  brand: 'TechMaster',
-  model: 'X200 Pro',
-  description: 'The Premium Smartphone X200 features a 6.7" AMOLED display, 128GB storage, 8GB RAM, and a triple camera system with 108MP main sensor. With 2-day battery life and IP68 water resistance, it\'s built for performance and durability.',
-  specifications: [
-    { label: 'Display', value: '6.7" AMOLED, 120Hz' },
-    { label: 'Processor', value: 'Snapdragon 8 Gen 2' },
-    { label: 'Storage', value: '128GB (expandable)' },
-    { label: 'RAM', value: '8GB LPDDR5' },
-    { label: 'Camera', value: '108MP + 12MP + 8MP' },
-    { label: 'Battery', value: '5000mAh, Fast Charge' },
-    { label: 'OS', value: 'Android 13' },
-    { label: 'Water Resistance', value: 'IP68' },
-  ],
-  colors: ['#2c3e50', '#e74c3c', '#3498db', '#f1c40f'],
-  inStock: true,
-};
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  originalPrice?: number;
+  discount?: string;
+  image: string;
+  rating?: number;
+  reviewCount?: number;
+  brand?: string;
+  model?: string;
+  description: string;
+  specifications?: { label: string; value: string }[];
+  colors?: string[];
+  inStock?: boolean;
+  categorie?: {
+    name: string;
+  };
+}
 
-export default function PorductScreen() {
-  const { id } = useLocalSearchParams();
-  
-  // In a real app, you would fetch product details based on the ID
-  const product = productData;
+export default function ProductScreen() {
+  // const { id } = useLocalSearchParams();
+  const id = '68810d2762526397f7468f44'
+  const [product, setProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const fetchProduct = async () => {
+      try {
+        const response = await axios.get(`http://192.168.0.105:5000/products/getProduct/${id}`);
+        const productData = response.data;
+        
+        // Transform the API data to match your frontend structure
+        const transformedProduct: Product = {
+          id: productData._id,
+          name: productData.name,
+          price: productData.price,
+          originalPrice: productData.originalPrice,
+          discount: productData.discountPercentage ? `${productData.discountPercentage}% off` : undefined,
+          image: productData.image || 'https://via.placeholder.com/300',
+          rating: productData.rating,
+          reviewCount: productData.reviewCount,
+          brand: productData.brand,
+          model: productData.model,
+          description: productData.description,
+          specifications: productData.specifications,
+          colors: productData.colors,
+          inStock: productData.stockQuantity > 0,
+        };
+        
+        setProduct(transformedProduct);
+      } catch (err) {
+        console.error('Error fetching product:', err);
+        setError('Failed to load product details');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProduct();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#e74c3c" />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>{error}</Text>
+      </View>
+    );
+  }
+
+  if (!product) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>Product not found</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Product Image */}
       <View style={styles.imageContainer}>
-        <Image source={{ uri: product.image }} style={styles.productImage} />
+        <Image source={{uri: `http://192.168.0.105:5000/${product.image.replace(/\\/g, '/')}`}} style={styles.productImage} />
         <TouchableOpacity style={styles.wishlistButton}>
           <Ionicons name="heart-outline" size={24} color="#fff" />
         </TouchableOpacity>
@@ -49,31 +104,51 @@ export default function PorductScreen() {
       {/* Product Info */}
       <View style={styles.contentContainer}>
         <View style={styles.priceContainer}>
-          <Text style={styles.currentPrice}>{product.price}</Text>
-          <Text style={styles.originalPrice}>{product.originalPrice}</Text>
-          <Text style={styles.discount}>{product.discount}</Text>
+          <Text style={styles.currentPrice}>${product.price.toFixed(2)}</Text>
+          {product.originalPrice && (
+            <>
+              <Text style={styles.originalPrice}>${product.originalPrice.toFixed(2)}</Text>
+              {product.discount && <Text style={styles.discount}>{product.discount}</Text>}
+            </>
+          )}
         </View>
 
         <Text style={styles.productName}>{product.name}</Text>
         
-        <View style={styles.ratingContainer}>
-          <View style={styles.starContainer}>
-            <Ionicons name="star" size={16} color="#FFD700" />
-            <Text style={styles.ratingText}>{product.rating}</Text>
+        {(product.rating || product.reviewCount) && (
+          <View style={styles.ratingContainer}>
+            {product.rating && (
+              <View style={styles.starContainer}>
+                <Ionicons name="star" size={16} color="#FFD700" />
+                <Text style={styles.ratingText}>{product.rating}</Text>
+              </View>
+            )}
+            {product.reviewCount && (
+              <Text style={styles.reviewCount}>{product.reviewCount} reviews</Text>
+            )}
+            <Text style={styles.inStock}>
+              {product.inStock ? 'In Stock' : 'Out of Stock'}
+            </Text>
           </View>
-          <Text style={styles.reviewCount}>{product.reviewCount} reviews</Text>
-          <Text style={styles.inStock}>
-            {product.inStock ? 'In Stock' : 'Out of Stock'}
-          </Text>
-        </View>
+        )}
 
         {/* Brand and Model */}
-        <View style={styles.brandContainer}>
-          <Text style={styles.brandLabel}>Brand:</Text>
-          <Text style={styles.brandValue}>{product.brand}</Text>
-          <Text style={styles.modelLabel}>Model:</Text>
-          <Text style={styles.modelValue}>{product.model}</Text>
-        </View>
+        {(product.brand || product.model) && (
+          <View style={styles.brandContainer}>
+            {product.brand && (
+              <>
+                <Text style={styles.brandLabel}>Brand:</Text>
+                <Text style={styles.brandValue}>{product.brand}</Text>
+              </>
+            )}
+            {product.model && (
+              <>
+                <Text style={styles.modelLabel}>Model:</Text>
+                <Text style={styles.modelValue}>{product.model}</Text>
+              </>
+            )}
+          </View>
+        )}
 
         {/* Description */}
         <View style={styles.section}>
@@ -82,28 +157,32 @@ export default function PorductScreen() {
         </View>
 
         {/* Specifications */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Specifications</Text>
-          {product.specifications.map((spec, index) => (
-            <View key={index} style={styles.specRow}>
-              <Text style={styles.specLabel}>{spec.label}</Text>
-              <Text style={styles.specValue}>{spec.value}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Color Options */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Color Options</Text>
-          <View style={styles.colorOptions}>
-            {product.colors.map((color, index) => (
-              <TouchableOpacity 
-                key={index} 
-                style={[styles.colorOption, { backgroundColor: color }]}
-              />
+        {product.specifications && product.specifications.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Specifications</Text>
+            {product.specifications.map((spec, index) => (
+              <View key={index} style={styles.specRow}>
+                <Text style={styles.specLabel}>{spec.label}</Text>
+                <Text style={styles.specValue}>{spec.value}</Text>
+              </View>
             ))}
           </View>
-        </View>
+        )}
+
+        {/* Color Options */}
+        {product.colors && product.colors.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Color Options</Text>
+            <View style={styles.colorOptions}>
+              {product.colors.map((color, index) => (
+                <TouchableOpacity 
+                  key={index} 
+                  style={[styles.colorOption, { backgroundColor: color }]}
+                />
+              ))}
+            </View>
+          </View>
+        )}
       </View>
 
       {/* Add to Cart Button */}
@@ -117,8 +196,25 @@ export default function PorductScreen() {
   );
 }
 
+// Add these new styles to your existing StyleSheet
 const styles = StyleSheet.create({
-  container: {
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 18,
+    color: '#e74c3c',
+    textAlign: 'center',
+  },
+ container: {
     flex: 1,
     backgroundColor: '#fff',
   },
@@ -284,5 +380,4 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: '600',
-  },
-});
+  },});
