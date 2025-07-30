@@ -11,6 +11,9 @@ import {
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { useDispatch, useSelector } from 'react-redux'
+import { setLogin } from '../src/features/slice/userSlice'
+
 
 const RegisterScreen = () => {
   const [name, setName] = useState('');
@@ -19,6 +22,7 @@ const RegisterScreen = () => {
   const [confirmPass, setConfirmPass] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [loading, setLoading] = useState(false);
+  const dispatch = useDispatch();
 
   const handleRegister = async () => {
     if (!name || !email || !password || !confirmPass) {
@@ -43,6 +47,8 @@ const RegisterScreen = () => {
 
       if (response.status === 201 || response.status === 200) {        
         await AsyncStorage.setItem('userToken', response.data.token);
+                dispatch(setLogin({ userRole: response.data.user.role }))
+        
       } else {
         Alert.alert('Failed', 'Unexpected error occurred');
       }

@@ -88,7 +88,7 @@ router.post('/logout', passport.authenticate('jwt', { session: false }), async (
 });
 
 // GET /api/auth/me - Get current user profile
-router.get('/me', passport.authenticate('jwt', { session: false }), async (req, res) => {
+router.get('/profile', passport.authenticate('jwt', { session: false }), async (req, res) => {
 	try {
 		const user = await User.findById(req.user.id).select('-password');
 		res.json(user);

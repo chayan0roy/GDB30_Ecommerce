@@ -3,8 +3,10 @@ import { useState, useEffect } from 'react';
 import { Image, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import { useIsFocused } from '@react-navigation/native';
 
 export default function WatchlistScreen() {
+	const isFocused = useIsFocused();
 	const [wishlist, setWishlist] = useState([]);
 	const [refreshing, setRefreshing] = useState(false);
 	const [loading, setLoading] = useState(true);
@@ -66,8 +68,10 @@ export default function WatchlistScreen() {
 	};
 
 	useEffect(() => {
-		fetchWatchlist();
-	}, []);
+		if (isFocused) {
+			fetchWatchlist();
+		}
+	}, [isFocused]);
 
 	if (loading) {
 		return (

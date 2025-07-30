@@ -1,50 +1,41 @@
-import { Drawer } from 'expo-router/drawer';
+// app/_layout.tsx
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Stack } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { Provider } from 'react-redux';
+import store from '../src/features/Store';
+
+
 
 export default function RootLayout() {
-	return (
-		<Drawer>
-			<Drawer.Screen
-				name="(tabs)"
-				options={{
-					drawerLabel: "Home",
-					title: "Home",
-				}}
-			/>
-			<Drawer.Screen
-				name="LoginScreen"
-				options={{
-					drawerLabel: "Login",
-					title: "Login",
-				}}
-			/>
-			<Drawer.Screen
-				name="RegisterScreen"
-				options={{
-					drawerLabel: "Register",
-					title: "Register",
-				}}
-			/>
-			<Drawer.Screen
-				name="BannerManagementScreen"
-				options={{
-					drawerLabel: "Banner Management",
-					title: "Banner Management",
-				}}
-			/>
-			<Drawer.Screen
-				name="CategoryManagementScreen"
-				options={{
-					drawerLabel: "Category Management",
-					title: "Category Management",
-				}}
-			/>
-			<Drawer.Screen
-				name="ProductManagementScreen"
-				options={{
-					drawerLabel: "Product Management",
-					title: "Product Management",
-				}}
-			/>
-		</Drawer>
-	);
+    const [token, setToken] = useState('');
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const checkToken = async () => {
+            const storedToken = await AsyncStorage.getItem('userToken');
+            setToken(storedToken || '');
+            setLoading(false);
+        };
+        checkToken();
+    }, []);
+
+
+    if (loading) return null;
+console.log(token);
+
+    return (
+        <Provider store={store}>
+            <Stack screenOptions={{ headerShown: false }}>
+                {token ? (
+                    <Stack.Screen name="(drawer)" />
+                ) : (
+                    <>
+                        <Stack.Screen name="Login" />
+                        <Stack.Screen name="Register" />
+                    </>
+                )}
+            </Stack>
+        </Provider>
+    );
 }

@@ -3,8 +3,10 @@ import { useState, useEffect } from 'react';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View, Alert, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import { useIsFocused } from '@react-navigation/native';
 
 export default function CartScreen() {
+  const isFocused = useIsFocused();
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -35,7 +37,7 @@ export default function CartScreen() {
   // Update item quantity
   const updateQuantity = async (productId, newQuantity) => {
     if (newQuantity < 1) return;
-    
+
     try {
       const token = await AsyncStorage.getItem('userToken');
       if (!token) {
@@ -82,10 +84,17 @@ export default function CartScreen() {
     return cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
   };
 
-  // Initialize cart data
-  useEffect(() => {
-    fetchCartData();
-  }, []);
+
+
+
+    useEffect(() => {
+      if (isFocused) {
+        fetchCartData();
+      }
+    }, [isFocused]);
+  
+
+
 
   if (loading) {
     return (
@@ -110,7 +119,7 @@ export default function CartScreen() {
     <View style={styles.container}>
       <ScrollView style={styles.scrollContainer}>
         <Text style={styles.title}>Your Cart ({cartItems.length})</Text>
-        
+
         {cartItems.length === 0 ? (
           <View style={styles.emptyCart}>
             <Ionicons name="cart-outline" size={60} color="#95a5a6" />
@@ -120,26 +129,26 @@ export default function CartScreen() {
           <>
             {cartItems.map(item => (
               <View key={item.product._id} style={styles.cartItem}>
-                <Image 
-                  source={{ uri: `http://192.168.0.105:5000/${item.product.image.replace(/\\/g, '/')}` }} 
-                  style={styles.itemImage} 
+                <Image
+                  source={{ uri: `http://192.168.0.105:5000/${item.product.image.replace(/\\/g, '/')}` }}
+                  style={styles.itemImage}
                 />
-                
+
                 <View style={styles.itemDetails}>
                   <Text style={styles.itemName}>{item.product.name}</Text>
                   <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
-                  
+
                   <View style={styles.quantityContainer}>
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       onPress={() => updateQuantity(item.product._id, item.quantity - 1)}
                       style={styles.quantityButton}
                     >
                       <Ionicons name="remove" size={16} color="#2c3e50" />
                     </TouchableOpacity>
-                    
+
                     <Text style={styles.quantityText}>{item.quantity}</Text>
-                    
-                    <TouchableOpacity 
+
+                    <TouchableOpacity
                       onPress={() => updateQuantity(item.product._id, item.quantity + 1)}
                       style={styles.quantityButton}
                     >
@@ -147,8 +156,8 @@ export default function CartScreen() {
                     </TouchableOpacity>
                   </View>
                 </View>
-                
-                <TouchableOpacity 
+
+                <TouchableOpacity
                   onPress={() => removeItem(item.product._id)}
                   style={styles.deleteButton}
                 >
@@ -156,7 +165,7 @@ export default function CartScreen() {
                 </TouchableOpacity>
               </View>
             ))}
-            
+
             <View style={styles.summaryContainer}>
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Subtotal</Text>
@@ -180,7 +189,7 @@ export default function CartScreen() {
           </>
         )}
       </ScrollView>
-      
+
       {cartItems.length > 0 && (
         <TouchableOpacity style={styles.checkoutButton}>
           <Text style={styles.checkoutText}>Proceed to Checkout</Text>
@@ -192,7 +201,7 @@ export default function CartScreen() {
 
 
 const styles = StyleSheet.create({
-   loadingContainer: {
+  loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center'

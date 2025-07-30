@@ -20,5 +20,5 @@ const cartSlice = createSlice(
     }
 )
 
-export const { setLogin, setLogout } = cartSlice.actions;
+export const { addtocartData, removetocartData, cleanCartdata } = cartSlice.actions;
 export default cartSlice.reducer;

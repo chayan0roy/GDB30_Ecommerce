@@ -11,11 +11,19 @@ import {
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { useDispatch, useSelector } from 'react-redux'
+import { setLogin } from '../src/features/slice/userSlice'
+
+
 
 const LoginScreen = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const dispatch = useDispatch();
+
+
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -32,9 +40,11 @@ const LoginScreen = () => {
       });
 
       if (response.status === 200) {
-       await AsyncStorage.setItem('userToken', response.data.token);
-       console.log(response.data.token);
-       
+        await AsyncStorage.setItem('userToken', response.data.token);
+
+        dispatch(setLogin({ userRole: response.data.user.role }))
+
+
       } else {
         Alert.alert('Login Failed', 'Unexpected error');
       }
