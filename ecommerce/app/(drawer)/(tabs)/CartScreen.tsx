@@ -4,6 +4,7 @@ import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View, Alert, Act
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { useIsFocused } from '@react-navigation/native';
+import { router } from 'expo-router';
 
 export default function CartScreen() {
   const isFocused = useIsFocused();
@@ -191,7 +192,7 @@ export default function CartScreen() {
       </ScrollView>
 
       {cartItems.length > 0 && (
-        <TouchableOpacity style={styles.checkoutButton}>
+        <TouchableOpacity style={styles.checkoutButton} onPress={()=>router.push('../CheckoutScreen')}>
           <Text style={styles.checkoutText}>Proceed to Checkout</Text>
         </TouchableOpacity>
       )}

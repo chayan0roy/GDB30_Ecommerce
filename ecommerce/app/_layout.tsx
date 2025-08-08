@@ -4,25 +4,29 @@ import { Stack } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Provider } from 'react-redux';
 import store from '../src/features/Store';
-
+import { useIsFocused } from '@react-navigation/native';
 
 
 export default function RootLayout() {
+    const isFocused = useIsFocused();
     const [token, setToken] = useState('');
     const [loading, setLoading] = useState(true);
 
+
     useEffect(() => {
-        const checkToken = async () => {
-            const storedToken = await AsyncStorage.getItem('userToken');
-            setToken(storedToken || '');
-            setLoading(false);
-        };
-        checkToken();
-    }, []);
+        if (isFocused) {
+            const checkToken = async () => {
+                const storedToken = await AsyncStorage.getItem('userToken');
+                setToken(storedToken || '');
+                setLoading(false);
+            };
+            checkToken();
+        }
+
+    }, [isFocused]);
 
 
     if (loading) return null;
-console.log(token);
 
     return (
         <Provider store={store}>

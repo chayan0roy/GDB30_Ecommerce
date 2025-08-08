@@ -5,11 +5,11 @@ import axios from 'axios';
 import { useEffect, useState } from 'react';
 
 interface Product {
-  id: string;
+  _id: string;
   name: string;
   price: number;
   originalPrice?: number;
-  discount?: string;
+  discountPercentage?: number;
   image: string;
   rating?: number;
   reviewCount?: number;
@@ -18,15 +18,14 @@ interface Product {
   description: string;
   specifications?: { label: string; value: string }[];
   colors?: string[];
-  inStock?: boolean;
-  categorie?: {
+  stockQuantity?: number;
+  category?: {
     name: string;
   };
 }
 
 export default function ProductScreen() {
-  // const { id } = useLocalSearchParams();
-  const id = '68810d2762526397f7468f44'
+  const { id } = useLocalSearchParams();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -37,25 +36,7 @@ export default function ProductScreen() {
         const response = await axios.get(`http://192.168.0.105:5000/products/getProduct/${id}`);
         const productData = response.data;
         
-        // Transform the API data to match your frontend structure
-        const transformedProduct: Product = {
-          id: productData._id,
-          name: productData.name,
-          price: productData.price,
-          originalPrice: productData.originalPrice,
-          discount: productData.discountPercentage ? `${productData.discountPercentage}% off` : undefined,
-          image: productData.image || 'https://via.placeholder.com/300',
-          rating: productData.rating,
-          reviewCount: productData.reviewCount,
-          brand: productData.brand,
-          model: productData.model,
-          description: productData.description,
-          specifications: productData.specifications,
-          colors: productData.colors,
-          inStock: productData.stockQuantity > 0,
-        };
-        
-        setProduct(transformedProduct);
+        setProduct(productData);
       } catch (err) {
         console.error('Error fetching product:', err);
         setError('Failed to load product details');
@@ -95,7 +76,10 @@ export default function ProductScreen() {
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Product Image */}
       <View style={styles.imageContainer}>
-        <Image source={{uri: `http://192.168.0.105:5000/${product.image.replace(/\\/g, '/')}`}} style={styles.productImage} />
+        <Image 
+          source={{uri: `http://192.168.0.105:5000/${product.image.replace(/\\/g, '/')}`}} 
+          style={styles.productImage} 
+        />
         <TouchableOpacity style={styles.wishlistButton}>
           <Ionicons name="heart-outline" size={24} color="#fff" />
         </TouchableOpacity>
@@ -104,11 +88,15 @@ export default function ProductScreen() {
       {/* Product Info */}
       <View style={styles.contentContainer}>
         <View style={styles.priceContainer}>
-          <Text style={styles.currentPrice}>${product.price.toFixed(2)}</Text>
-          {product.originalPrice && (
+          <Text style={styles.currentPrice}>
+            ${product.discountPercentage ? 
+              (product.price - (product.price * product.discountPercentage / 100)).toFixed(2) : 
+              product.price.toFixed(2)}
+          </Text>
+          {product.discountPercentage && (
             <>
-              <Text style={styles.originalPrice}>${product.originalPrice.toFixed(2)}</Text>
-              {product.discount && <Text style={styles.discount}>{product.discount}</Text>}
+              <Text style={styles.originalPrice}>${product.price.toFixed(2)}</Text>
+              <Text style={styles.discount}>{product.discountPercentage}% off</Text>
             </>
           )}
         </View>
@@ -127,7 +115,7 @@ export default function ProductScreen() {
               <Text style={styles.reviewCount}>{product.reviewCount} reviews</Text>
             )}
             <Text style={styles.inStock}>
-              {product.inStock ? 'In Stock' : 'Out of Stock'}
+              {product.stockQuantity && product.stockQuantity > 0 ? 'In Stock' : 'Out of Stock'}
             </Text>
           </View>
         )}
@@ -196,7 +184,6 @@ export default function ProductScreen() {
   );
 }
 
-// Add these new styles to your existing StyleSheet
 const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
@@ -214,7 +201,7 @@ const styles = StyleSheet.create({
     color: '#e74c3c',
     textAlign: 'center',
   },
- container: {
+  container: {
     flex: 1,
     backgroundColor: '#fff',
   },
@@ -380,4 +367,5 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: '600',
-  },});
+  },
+});

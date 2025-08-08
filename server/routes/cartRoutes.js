@@ -18,8 +18,7 @@ const calculateCartTotals = (cart) => {
 // 1. Get user's cart
 router.get('/getCart', passport.authenticate('jwt', { session: false }), async (req, res) => {
 	try {
-		const cart = await Cart.findOne({ user: req.user._id }).populate('items.product');
-		if (!cart) return res.status(404).send('Cart not found.');
+		const cart = await Cart.findOne({ user: req.user._id }).populate('items.product');		
 		res.json(cart);
 	} catch (err) {
 		res.status(500).send('Server error.');

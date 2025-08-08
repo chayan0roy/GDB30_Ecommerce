@@ -5,10 +5,9 @@ import Carousel from 'react-native-reanimated-carousel';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import Toast from 'react-native-toast-message';
-import { useIsFocused } from '@react-navigation/native';
-
+import { useIsFocused, useNavigation } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 const { width } = Dimensions.get('window');
-
 type Product = {
 	_id: string;
 	name: string;
@@ -23,6 +22,7 @@ type WishlistItem = {
 };
 
 export default function HomeScreen() {
+	const router = useRouter();
 	const isFocused = useIsFocused();
 	const [activeIndex, setActiveIndex] = useState(0);
 	const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
@@ -34,34 +34,35 @@ export default function HomeScreen() {
 	const carouselRef = useRef(null);
 
 	useEffect(() => {
-		const fetchData = async () => {
-			try {
-				setLoading(true);
-				const token = await AsyncStorage.getItem('userToken');
+		if (isFocused) {
+			const fetchData = async () => {
+				try {
+					setLoading(true);
+					const token = await AsyncStorage.getItem('userToken');
 
-				// Fetch all data in parallel
-				const [bannersRes, categoriesRes, productsRes] = await Promise.all([
-					axios.get('http://192.168.0.105:5000/banners/allBanner'),
-					axios.get('http://192.168.0.105:5000/categories/getAllCategories'),
-					axios.get('http://192.168.0.105:5000/products/allProduct', {
-						headers: token ? { Authorization: `Bearer ${token}` } : {}
-					})
-				]);
+					const [bannersRes, categoriesRes, productsRes] = await Promise.all([
+						axios.get('http://192.168.0.105:5000/banners/allBanner'),
+						axios.get('http://192.168.0.105:5000/categories/getAllCategories'),
+						axios.get('http://192.168.0.105:5000/products/allProduct', {
+							headers: token ? { Authorization: `Bearer ${token}` } : {}
+						})
+					]);
 
-				setBanners(bannersRes.data);
-				setCategories(categoriesRes.data.categories);
-				setProducts(productsRes.data);
-				setError(null);
-			} catch (err: any) {
-				console.error('Error fetching data:', err);
-				setError(err.message);
-			} finally {
-				setLoading(false);
-			}
-		};
+					setBanners(bannersRes.data);
+					setCategories(categoriesRes.data.categories);
+					setProducts(productsRes.data);
+					setError(null);
+				} catch (err: any) {
+					console.error('Error fetching data:', err);
+					setError(err.message);
+				} finally {
+					setLoading(false);
+				}
+			};
 
-		fetchData();
-	}, []);
+			fetchData();
+		}
+	}, [isFocused]);
 
 	useEffect(() => {
 		if (isFocused) {
@@ -101,9 +102,7 @@ export default function HomeScreen() {
 				{ headers: { Authorization: `Bearer ${token}` } }
 			);
 
-			// Update local state based on response
 			if (response.data.inWishlist) {
-				// Find the product to add to wishlist
 				const productToAdd = products.find(p => p._id === productId);
 				if (productToAdd) {
 					setWishlist(prev => [...prev, { product: productToAdd }]);
@@ -112,7 +111,6 @@ export default function HomeScreen() {
 				setWishlist(prev => prev.filter(item => item.product._id !== productId));
 			}
 
-			// Show feedback to user
 			Toast.show({
 				type: response.data.inWishlist ? 'success' : 'info',
 				text1: response.data.inWishlist ? 'Added to wishlist' : 'Removed from wishlist',
@@ -162,6 +160,13 @@ export default function HomeScreen() {
 		}
 	};
 
+	const handleProductPress = (productId: string) => {
+		router.push({
+			pathname: '../PorductScreen',
+			params: { id: productId },
+		});
+	};
+
 	const renderBannerItem = ({ item }: { item: any }) => (
 		<View style={styles.bannerContainer}>
 			<Image
@@ -190,7 +195,10 @@ export default function HomeScreen() {
 		const isInWishlist = wishlist.some(wishItem => wishItem.product._id === item._id);
 
 		return (
-			<View style={styles.productCard}>
+			<TouchableOpacity
+				style={styles.productCard}
+				onPress={() => handleProductPress(item._id)}
+			>
 				<View style={styles.productImageContainer}>
 					<Image source={{ uri: `http://192.168.0.105:5000/${item.image.replace(/\\/g, '/')}` }} style={styles.productImage} />
 
@@ -220,9 +228,9 @@ export default function HomeScreen() {
 					<View style={styles.priceContainer}>
 						{item.discount > 0 ? (
 							<>
-								<Text style={styles.currentPrice}>${item.price}</Text>
+								<Text style={styles.currentPrice}>${Math.round(item.price - (item.price * item.discount) / 100)}</Text>
 								<Text style={styles.originalPrice}>
-									${Math.round(item.price / (1 - item.discount / 100))}
+									${item.price}
 								</Text>
 								<Text style={styles.discount}>
 									({item.discount}% off)
@@ -242,7 +250,7 @@ export default function HomeScreen() {
 						<Text style={styles.addToCartText}>Add to Cart</Text>
 					</TouchableOpacity>
 				</View>
-			</View>
+			</TouchableOpacity>
 		);
 	};
 
@@ -335,7 +343,7 @@ export default function HomeScreen() {
 				<View style={styles.section}>
 					<View style={styles.sectionHeader}>
 						<Text style={styles.sectionTitle}>Popular Products</Text>
-						<TouchableOpacity>
+						<TouchableOpacity onPress={()=>router.push('../AllProductsPage')}>
 							<Text style={styles.seeAll}>See All</Text>
 						</TouchableOpacity>
 					</View>
@@ -353,6 +361,7 @@ export default function HomeScreen() {
 		</View>
 	);
 }
+
 
 const styles = StyleSheet.create({
 	container: {

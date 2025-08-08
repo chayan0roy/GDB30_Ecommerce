@@ -134,10 +134,7 @@ export default function DrawerLayout() {
             state: {
                 ...props.state,
                 routes: props.state.routes.filter(route => {
-                    // Always show Home screen
-                    if (route.name === 'index') return true;
-                    // Show admin screens only if user is admin
-                    if (['AllUser', 'AdminParagraphInputScreen'].includes(route.name)) {
+                    if (['BannerManagementScreen', 'CategoryManagementScreen', 'ProductManagementScreen'].includes(route.name)) {
                         return userProfile?.role === 'admin';
                     }
                     // Show other screens

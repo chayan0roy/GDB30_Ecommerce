@@ -13,6 +13,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { useDispatch, useSelector } from 'react-redux'
 import { setLogin } from '../src/features/slice/userSlice'
+import { router } from 'expo-router';
 
 
 
@@ -92,6 +93,13 @@ const LoginScreen = () => {
           <Text style={styles.loginText}>Login</Text>
         </TouchableOpacity>
       )}
+      <View style={{flexDirection:'row', marginTop:20}}>
+        <Text>You Dont have any account? </Text>
+        <TouchableOpacity onPress={()=>router.push('/Register')}>
+        <Text>Register</Text>
+      </TouchableOpacity>
+      </View>
+      
     </View>
   );
 };

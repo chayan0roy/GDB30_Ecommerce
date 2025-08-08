@@ -1,28 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
-import { Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useState, useEffect } from 'react';
+import { Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import { useIsFocused } from '@react-navigation/native';
 
-const initialCartItems = [
-  {
-    id: '1',
-    name: 'Premium Smartphone X200',
-    price: 599,
-    image: 'https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=500&auto=format&fit=crop&q=60',
-    quantity: 1,
-  },
-  {
-    id: '2',
-    name: 'Wireless Bluetooth Headphones',
-    price: 129,
-    image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60',
-    quantity: 2,
-  },
-];
 
 export default function CheckoutScreen() {
-  const [cartItems] = useState(initialCartItems);
+  const isFocused = useIsFocused();
+
+  const [cartItems, setCartItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState('card');
   const [formData, setFormData] = useState({
     fullName: '',
@@ -35,8 +24,42 @@ export default function CheckoutScreen() {
     cvv: '',
   });
 
+  // Fetch cart data from API
+  useEffect(() => {
+    if (isFocused) {
+      const fetchCartData = async () => {
+        try {
+          setLoading(true);
+          const token = await AsyncStorage.getItem('userToken');
+          if (!token) {
+            setLoading(false);
+            return;
+          }
+
+          const response = await axios.get('http://192.168.0.105:5000/cart/getCart', {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+
+          setCartItems(response.data.items || []);
+        } catch (err) {
+          setError(err.message);
+          console.error('Failed to fetch cart:', err);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      fetchCartData();
+    }
+
+  }, [isFocused]);
+
+  const calculateSubtotal = () => {
+    return cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
+  };
+
   const calculateTotal = () => {
-    const subtotal = cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
+    const subtotal = calculateSubtotal();
     const shipping = 5.99;
     const tax = subtotal * 0.1;
     return (subtotal + shipping + tax).toFixed(2);
@@ -49,16 +72,53 @@ export default function CheckoutScreen() {
     });
   };
 
-  const handleSubmit = () => {
-    // In a real app, you would process the payment here
-    alert('Order placed successfully!');
+  const handleSubmit = async () => {
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      if (!token) {
+        Alert.alert('Login Required', 'Please login to complete your order');
+        return;
+      }
+
+      // In a real app, you would process the payment here
+      // For now, we'll just show a success message
+      Alert.alert('Success', 'Order placed successfully!');
+
+      // You might want to clear the cart after successful order
+      // await axios.post('http://192.168.0.105:5000/order/create', orderData, {
+      //   headers: { Authorization: `Bearer ${token}` }
+      // });
+
+    } catch (err) {
+      Alert.alert('Error', 'Failed to place order');
+      console.error('Order submission error:', err);
+    }
   };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#e74c3c" />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Text style={styles.retryText}>Back to Cart</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollContainer}>
         <Text style={styles.title}>Checkout</Text>
-        
+
         {/* Delivery Address Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Delivery Address</Text>
@@ -115,48 +175,48 @@ export default function CheckoutScreen() {
         {/* Payment Method Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Payment Method</Text>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={[
-              styles.paymentOption, 
+              styles.paymentOption,
               paymentMethod === 'card' && styles.paymentOptionSelected
             ]}
             onPress={() => setPaymentMethod('card')}
           >
-            <Ionicons 
-              name={paymentMethod === 'card' ? 'radio-button-on' : 'radio-button-off'} 
-              size={20} 
-              color="#e74c3c" 
+            <Ionicons
+              name={paymentMethod === 'card' ? 'radio-button-on' : 'radio-button-off'}
+              size={20}
+              color="#e74c3c"
             />
             <Text style={styles.paymentText}>Credit/Debit Card</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={[
-              styles.paymentOption, 
+              styles.paymentOption,
               paymentMethod === 'paypal' && styles.paymentOptionSelected
             ]}
             onPress={() => setPaymentMethod('paypal')}
           >
-            <Ionicons 
-              name={paymentMethod === 'paypal' ? 'radio-button-on' : 'radio-button-off'} 
-              size={20} 
-              color="#e74c3c" 
+            <Ionicons
+              name={paymentMethod === 'paypal' ? 'radio-button-on' : 'radio-button-off'}
+              size={20}
+              color="#e74c3c"
             />
             <Text style={styles.paymentText}>PayPal</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={[
-              styles.paymentOption, 
+              styles.paymentOption,
               paymentMethod === 'cod' && styles.paymentOptionSelected
             ]}
             onPress={() => setPaymentMethod('cod')}
           >
-            <Ionicons 
-              name={paymentMethod === 'cod' ? 'radio-button-on' : 'radio-button-off'} 
-              size={20} 
-              color="#e74c3c" 
+            <Ionicons
+              name={paymentMethod === 'cod' ? 'radio-button-on' : 'radio-button-off'}
+              size={20}
+              color="#e74c3c"
             />
             <Text style={styles.paymentText}>Cash on Delivery</Text>
           </TouchableOpacity>
@@ -202,12 +262,15 @@ export default function CheckoutScreen() {
         {/* Order Summary Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Order Summary</Text>
-          
+
           {cartItems.map(item => (
-            <View key={item.id} style={styles.orderItem}>
-              <Image source={{ uri: item.image }} style={styles.orderImage} />
+            <View key={item.product._id} style={styles.orderItem}>
+              <Image
+                source={{ uri: `http://192.168.0.105:5000/${item.product.image.replace(/\\/g, '/')}` }}
+                style={styles.orderImage}
+              />
               <View style={styles.orderDetails}>
-                <Text style={styles.orderName}>{item.name}</Text>
+                <Text style={styles.orderName}>{item.product.name}</Text>
                 <Text style={styles.orderPrice}>${item.price.toFixed(2)} × {item.quantity}</Text>
               </View>
               <Text style={styles.orderTotal}>
@@ -215,11 +278,11 @@ export default function CheckoutScreen() {
               </Text>
             </View>
           ))}
-          
+
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Subtotal</Text>
             <Text style={styles.summaryValue}>
-              ${cartItems.reduce((total, item) => total + (item.price * item.quantity), 0).toFixed(2)}
+              ${calculateSubtotal().toFixed(2)}
             </Text>
           </View>
           <View style={styles.summaryRow}>
@@ -229,7 +292,7 @@ export default function CheckoutScreen() {
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Tax</Text>
             <Text style={styles.summaryValue}>
-              ${(cartItems.reduce((total, item) => total + (item.price * item.quantity), 0) * 0.1).toFixed(2)}
+              ${(calculateSubtotal() * 0.1).toFixed(2)}
             </Text>
           </View>
           <View style={[styles.summaryRow, styles.totalRow]}>
@@ -238,13 +301,16 @@ export default function CheckoutScreen() {
           </View>
         </View>
       </ScrollView>
-      
+
       {/* Place Order Button */}
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.placeOrderButton}
         onPress={handleSubmit}
+        disabled={cartItems.length === 0}
       >
-        <Text style={styles.placeOrderText}>Place Order - ${calculateTotal()}</Text>
+        <Text style={styles.placeOrderText}>
+          {cartItems.length > 0 ? `Place Order - $${calculateTotal()}` : 'Cart is Empty'}
+        </Text>
       </TouchableOpacity>
     </View>
   );
@@ -387,5 +453,25 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: '600',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20
+  },
+  errorText: {
+    color: '#e74c3c',
+    marginBottom: 20,
+    textAlign: 'center'
+  },
+  retryText: {
+    color: '#3498db',
+    fontWeight: 'bold'
   },
 });

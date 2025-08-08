@@ -13,6 +13,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { useDispatch, useSelector } from 'react-redux'
 import { setLogin } from '../src/features/slice/userSlice'
+import { router } from 'expo-router';
 
 
 const RegisterScreen = () => {
@@ -39,16 +40,16 @@ const RegisterScreen = () => {
 
     try {
       const response = await axios.post('http://192.168.0.105:5000/user/register', {
-        username:name,
+        username: name,
         email,
         password,
         phoneNumber
       });
 
-      if (response.status === 201 || response.status === 200) {        
+      if (response.status === 201 || response.status === 200) {
         await AsyncStorage.setItem('userToken', response.data.token);
-                dispatch(setLogin({ userRole: response.data.user.role }))
-        
+        dispatch(setLogin({ userRole: response.data.user.role }))
+
       } else {
         Alert.alert('Failed', 'Unexpected error occurred');
       }
@@ -104,7 +105,7 @@ const RegisterScreen = () => {
         secureTextEntry
       />
 
-       <TextInput
+      <TextInput
         style={styles.input}
         placeholder="Phone Number"
         value={phoneNumber}
@@ -119,7 +120,12 @@ const RegisterScreen = () => {
           <Text style={styles.registerText}>Register</Text>
         </TouchableOpacity>
       )}
-
+      <View style={{ flexDirection: 'row', marginTop: 20 }}>
+        <Text>Already have an account? </Text>
+        <TouchableOpacity onPress={() => router.push('/Login')}>
+          <Text>Login</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
